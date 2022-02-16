@@ -1,0 +1,26 @@
+---
+title: "sfurrr"
+output: 
+  github_document:
+    fig_width: 7.5
+    fig_height: 6
+  html_preview: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+An experimental R package to parallelise some functions from the excellent {sf}
+package using also brilliant {furrr} package. Right now it's just parallel 
+versions of `st_join` and `st_filter`. They won't always help and will often be 
+slower but sometimes it might be useful. This is just messing about right now 
+tbh. The code is deliberately copied from {sf} and {furrr} so that it can be used
+as basically a drop in replacement.
+
+```{r cars}
+message('We need examples!?')
+```
+
