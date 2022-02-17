@@ -39,19 +39,20 @@ future_st_join.sf <- function(x, y, join=st_intersects, ...,
                               nchunks=1, .progress=FALSE){
   nr <- nrow(x)
   grp_size <- round(nr/ncores+1)/nchunks
-  future::plan(multisession, workers = ncores)
+  future::plan(future::multisession, workers = ncores)
 
-  sf.join <- split(x, as.integer(gl(nr, grp_size, nr))) %>%
-    furrr::future_map(.,
-                      .f = function(.x, ...)
-                        {sf:::st_join.sf(x=.x, y=y, join=join, ...,
-                                         suffix=suffix, left=left,
-                                         largest=largest)}
-      , ..., .progress = .progress) %>%
-    do.call(rbind, .)
+  sf.join <- split(x, as.integer(gl(nr, grp_size, nr))) |>
+    furrr::future_map(.f = function(.x, ...){
+      sf:::st_join.sf(x=.x, y=y, join=join, ...,
+                      suffix=suffix, left=left,
+                      largest=largest)
+    }, ..., .progress = .progress)
 
   future:::ClusterRegistry("stop")
-  return(sf.join)
+
+  j <- do.call(rbind, sf.join)
+  rownames(j)<-NULL
+  j
 }
 
 
@@ -70,14 +71,16 @@ future_st_filter.sf = function(x, y, ..., .predicate = st_intersects,
 
   nr <- nrow(x)
   grp_size <- round(nr/ncores+1)/n_chunks
-  future::plan(multisession, workers = ncores)
+  future::plan(future::multisession, workers = ncores)
 
-  sf.filt <- split(x, as.integer(gl(nr, grp_size, nr))) %>%
-    furrr::future_map(., .f = function(.x, ...){
-      dplyr::filter(.x, lengths(.predicate(.x, y, ...)) > 0)}, ...,
-      .progress=.progress) %>%
-    do.call(rbind, .)
+  sf.filt <- split(x, as.integer(gl(nr, grp_size, nr))) |>
+    furrr::future_map(.f = function(.x, ...){
+      .x[lengths(.predicate(.x, y, ...)) > 0,]
+      }, ..., .progress=.progress)
 
   future:::ClusterRegistry("stop")
-  return(sf.filt)
+  # bind rows and reset row names
+  f <- do.call(rbind, sf.filt)
+  rownames(f)<-NULL
+  f
 }

@@ -3,3 +3,5 @@
 .RData
 .Ruserdata
 dev/
+data-raw/cache/
+data-raw/data/
