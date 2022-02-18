@@ -36,23 +36,71 @@ future_st_join = function(x, y, join, ...) UseMethod("future_st_join")
 future_st_join.sf <- function(x, y, join=st_intersects, ...,
                               suffix = c(".x", ".y"), largest=FALSE,
                               left = TRUE,  ncores = parallel::detectCores(),
-                              nchunks=1, .progress=FALSE){
+                              nchunks=1, .progress=FALSE,
+                              chunktype=c('rowwise', 'spatial')){
   nr <- nrow(x)
   grp_size <- round(nr/ncores+1)/nchunks
   future::plan(future::multisession, workers = ncores)
 
-  sf.join <- split(x, as.integer(gl(nr, grp_size, nr))) |>
-    furrr::future_map(.f = function(.x, ...){
-      sf:::st_join.sf(x=.x, y=y, join=join, ...,
+  if (chunktype[1]=='rowwise'){
+    t_dir <- tempdir()
+    # saveRDS(y, file.path(t_dir, "y.rds"))
+    geoarrow::write_geoarrow_parquet(y, file.path(t_dir, "y.parquet"))
+
+    sf.join.l <- split(x, as.integer(gl(nr, grp_size, nr)))
+
+    purrr::iwalk(sf.join.l,
+                 ~geoarrow::write_geoarrow_parquet(.x, file.path(t_dir, sprintf("y%s.parquet", .y))))
+
+    xlist <- purrr::map(1:length(sf.join.l),~file.path(t_dir, sprintf("y%s.parquet", .x)))
+
+    sf.join <- xlist |>
+      furrr::future_map(.f = function(.x, ...){
+        x1 <- geoarrow::read_geoarrow_parquet_sf(.x)
+        y1 <- geoarrow::read_geoarrow_parquet_sf(file.path(t_dir, "y.parquet"))
+        sf:::st_join.sf(x=x1, y=y1, join=join, ...,
+                        suffix=suffix, left=left,
+                        largest=largest)
+      }, ..., .progress = .progress)
+
+  } else if (chunktype[1]=='spatial'){
+
+    grd <- sf::st_make_grid(st_bbox(cycleways_england),
+                            n=c(1,round(ncores*nchunks))) |>
+      sf::st_as_sf()
+    grd['grd_id'] <- c(1:nrow(grd))
+
+    join_split <- function(.x1) {
+
+      .x1['id'] <- 1:nrow(.x1)
+      x.j <- st_join(.x1, grd, join=st_intersects,...) |>
+        dplyr::distinct(id, .keep_all = TRUE)
+
+      x.l <- split(x.j , x.j$grd_id)
+      lapply(x.l, function(df) df[!names(df) %in% c("grd_id")])
+      }
+
+    spat_list <- list(join_split(x), join_split(y))
+
+    sf.join <- spat_list |>
+    furrr::future_pmap(.f = function(first, second, ...){
+      sf:::st_join.sf(x=first, y=second, join=join, ...,
                       suffix=suffix, left=left,
                       largest=largest)
     }, ..., .progress = .progress)
+  }
+
 
   future:::ClusterRegistry("stop")
 
   j <- do.call(rbind, sf.join)
   rownames(j)<-NULL
+  if (chunktype[1]=='rowwise') {
+    j <- j[order(j$id.x),]
+    j <-j[!names(j) %in% c("id.x", "id.y")]
+  }
   j
+
 }
 
 
