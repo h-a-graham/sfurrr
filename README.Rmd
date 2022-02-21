@@ -32,6 +32,10 @@ useful. This is just messing about right now tbh. The code is
 deliberately copied from {sf} and {furrr} so that it can be used as a
 drop in replacement.
 
+I've added [{geoarrow}](https://github.com/paleolimbot/geoarrow) as a dependency
+to play with using it to pass data between cores - it seems to be fractionally 
+faster... make sure to install {arrow} if you want to try this out.
+
 ## Install
 
     # install.packages("remotes")
@@ -45,7 +49,7 @@ cycle network from Open Street Map (downloaded with
 counties from [Ordnance
 survey](https://osdatahub.os.uk/downloads/open/BoundaryLine).
 
-```{r show test data}
+```{r show_test_data}
 library(sfurrr)
 library(ggplot2)
 
@@ -68,7 +72,7 @@ different counties, for example.
 So let's do this with {sf} which is loaded by default with {sfurr}.
 Let's also get some timings with {tictoc}
 
-```{r intersect join sf}
+```{r intersect_join_sf}
 library(tictoc)
 
 tic()
@@ -88,7 +92,7 @@ st_intersect with a left join (default) is pretty speedy already with
 the option `largest=TRUE` which joins based on the largest amount of
 intersection.
 
-```{r intersect largest join sf}
+```{r intersect_largest_join_sf}
 # ------------ `st_join` ----------------
 tic()
 joinL.sf <-  st_join(cycleways_england,
@@ -103,19 +107,14 @@ toc()
 ```
 
 Okay so now we see that going parallel does indeed offer some potential
-uses when using a costly spatial function. Also let's just check that
-the two results match...
-
-```{r check match}
-all.equal(joinL.sf, joinL.sfurr)
-```
+uses when using a costly spatial function. 
 
 ### Spatial filtering
 
 Once again, here is a comparison of the simplest approach with th
 `st_intersect` spatial predicate.
 
-```{r spatial filter}
+```{r spatial_filter}
 # ------------ `st_fiter` ----------------
 tic()
 filt_t1 <- st_filter(cycleways_england['highway'],
@@ -136,7 +135,7 @@ cycleways that are not located entirely within the county areas... This
 is kind of pointless for this use case and is just illustrative
 really...
 
-```{r spatial filter st_within}
+```{r spatial_filter_st_within}
 # ------------ `st_fiter` ----------------
 tic()
 within_filt_t1 <- st_filter(joinL.sfurr,
@@ -160,7 +159,7 @@ filters/joins in parallel. Any speed up will depend on the number of
 processes you can run; by default, {sfurrr} uses all available cores but
 in many cases this is overkill...
 
-```{r final plot}
+```{r final_plot}
 ggplot(within_filt_t2)+
   geom_sf(aes(colour=Name), show.legend=FALSE)+
   geom_sf(data=gb_counties, fill=NA, colour='grey30') +

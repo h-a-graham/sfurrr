@@ -1,7 +1,12 @@
 sfurrr
 ================
 
-[![Lifecycle:Experimental](https://img.shields.io/badge/Lifecycle-Experimental-339999)](https://github.com/h-a-graham/sfurrr)
+<!-- badges: start -->
+
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+
+<!-- badges: end -->
 
 An experimental R package to parallelise some functions from the
 excellent {sf} package using the also brilliant {furrr} package. Right
@@ -11,6 +16,11 @@ won’t always help and will often be slower but sometimes it might be
 useful. This is just messing about right now tbh. The code is
 deliberately copied from {sf} and {furrr} so that it can be used as a
 drop in replacement.
+
+I’ve added [{geoarrow}](https://github.com/paleolimbot/geoarrow) as a
+dependency to play with using it to pass data between cores - it seems
+to be fractionally faster… make sure to install {arrow} if you want to
+try this out.
 
 ## Install
 
@@ -35,7 +45,7 @@ ggplot(cycleways_england)+
   theme_bw()
 ```
 
-![](man/figures/show%20test%20data-1.png)<!-- -->
+![](man/figures/show_test_data-1.png)<!-- -->
 
 ``` r
 summary(cycleways_england)
@@ -74,7 +84,7 @@ join.sf <-  st_join(cycleways_england,
 toc()
 ```
 
-    ## 9.599 sec elapsed
+    ## 9.013 sec elapsed
 
 ``` r
 tic()
@@ -83,7 +93,7 @@ join.sfurr <-  future_st_join(cycleways_england,
 toc()
 ```
 
-    ## 22.257 sec elapsed
+    ## 16.913 sec elapsed
 
 Okay.. so {sf} is actually a lot faster?! Yes, using the simple
 st_intersect with a left join (default) is pretty speedy already with
@@ -99,7 +109,7 @@ joinL.sf <-  st_join(cycleways_england,
 toc()
 ```
 
-    ## 154.059 sec elapsed
+    ## 154.848 sec elapsed
 
 ``` r
 # ------------ `future_st_join` ----------------
@@ -109,17 +119,10 @@ joinL.sfurr <-  future_st_join(cycleways_england,
 toc()
 ```
 
-    ## 46.652 sec elapsed
+    ## 46.467 sec elapsed
 
 Okay so now we see that going parallel does indeed offer some potential
-uses when using a costly spatial function. Also let’s just check that
-the two results match…
-
-``` r
-all.equal(joinL.sf, joinL.sfurr)
-```
-
-    ## [1] TRUE
+uses when using a costly spatial function.
 
 ### Spatial filtering
 
@@ -134,7 +137,7 @@ filt_t1 <- st_filter(cycleways_england['highway'],
 toc()
 ```
 
-    ## 7.831 sec elapsed
+    ## 8.131 sec elapsed
 
 ``` r
 # ----------- `future_st_filter` -----------------
@@ -144,7 +147,7 @@ filt_t2 <- future_st_filter(cycleways_england['highway'],
 toc()
 ```
 
-    ## 20.867 sec elapsed
+    ## 21.13 sec elapsed
 
 No surprises, {sf} is faster again. But, what about a more costly
 operation. Let’s use the `st_within` spatial predicate to filter out
@@ -159,7 +162,7 @@ within_filt_t1 <- st_filter(joinL.sfurr,
 toc()
 ```
 
-    ## 54.976 sec elapsed
+    ## 55.333 sec elapsed
 
 ``` r
 # ----------- `future_st_filter` -----------------
@@ -169,7 +172,7 @@ within_filt_t2 <- future_st_filter(joinL.sfurr,
 toc()
 ```
 
-    ## 26.889 sec elapsed
+    ## 26.821 sec elapsed
 
 Cool, so in this case it is faster!
 
@@ -188,4 +191,4 @@ ggplot(within_filt_t2)+
   theme_bw()
 ```
 
-![](man/figures/final%20plot-1.png)<!-- -->
+![](man/figures/final_plot-1.png)<!-- -->
