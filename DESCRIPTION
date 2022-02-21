@@ -18,10 +18,10 @@ Imports:
   furrr,
   parallel,
   future,
-  dplyr
+  geoarrow
 Depends: 
     R (>= 4.1),
     sf
-Suggests:
-  dplyr
 LazyData: true
+Remotes: 
+  geoarrow

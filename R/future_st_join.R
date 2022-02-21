@@ -36,69 +36,41 @@ future_st_join = function(x, y, join, ...) UseMethod("future_st_join")
 future_st_join.sf <- function(x, y, join=st_intersects, ...,
                               suffix = c(".x", ".y"), largest=FALSE,
                               left = TRUE,  ncores = parallel::detectCores(),
-                              nchunks=1, .progress=FALSE,
-                              chunktype=c('rowwise', 'spatial')){
+                              nchunks=1, .progress=FALSE){
   nr <- nrow(x)
   grp_size <- round(nr/ncores+1)/nchunks
   future::plan(future::multisession, workers = ncores)
 
-  if (chunktype[1]=='rowwise'){
-    t_dir <- tempdir()
-    # saveRDS(y, file.path(t_dir, "y.rds"))
-    geoarrow::write_geoarrow_parquet(y, file.path(t_dir, "y.parquet"))
+  # write temp paraquet files. perhaps fractionally faster than passing across cores
+  t_dir <- tempdir()
+  geoarrow::write_geoarrow_parquet(x, file.path(t_dir, "x.parquet"))
+  geoarrow::write_geoarrow_parquet(y, file.path(t_dir, "y.parquet"))
 
-    sf.join.l <- split(x, as.integer(gl(nr, grp_size, nr)))
+  # get data ranges
+  h1 <- c(seq(0,nr, grp_size), nr)
+  df_ranges <- data.frame(a=h1[1:length(h1)-1]+1, b=h1[2:length(h1)])
+  df_ranges <- split(df_ranges, 1:nrow(df_ranges))
 
-    purrr::iwalk(sf.join.l,
-                 ~geoarrow::write_geoarrow_parquet(.x, file.path(t_dir, sprintf("y%s.parquet", .y))))
+  #run parallel join
+  sf.join <- df_ranges |>
+    furrr::future_map(.f = function(.x, ...){
 
-    xlist <- purrr::map(1:length(sf.join.l),~file.path(t_dir, sprintf("y%s.parquet", .x)))
+      x1 <- geoarrow::read_geoarrow_parquet_sf(file.path(t_dir, "x.parquet"))
+      x1 <- x1[.x$a:.x$b,]
 
-    sf.join <- xlist |>
-      furrr::future_map(.f = function(.x, ...){
-        x1 <- geoarrow::read_geoarrow_parquet_sf(.x)
-        y1 <- geoarrow::read_geoarrow_parquet_sf(file.path(t_dir, "y.parquet"))
-        sf:::st_join.sf(x=x1, y=y1, join=join, ...,
-                        suffix=suffix, left=left,
-                        largest=largest)
-      }, ..., .progress = .progress)
+      y1 <- geoarrow::read_geoarrow_parquet_sf(file.path(t_dir, "y.parquet"))
 
-  } else if (chunktype[1]=='spatial'){
-
-    grd <- sf::st_make_grid(st_bbox(cycleways_england),
-                            n=c(1,round(ncores*nchunks))) |>
-      sf::st_as_sf()
-    grd['grd_id'] <- c(1:nrow(grd))
-
-    join_split <- function(.x1) {
-
-      .x1['id'] <- 1:nrow(.x1)
-      x.j <- st_join(.x1, grd, join=st_intersects,...) |>
-        dplyr::distinct(id, .keep_all = TRUE)
-
-      x.l <- split(x.j , x.j$grd_id)
-      lapply(x.l, function(df) df[!names(df) %in% c("grd_id")])
-      }
-
-    spat_list <- list(join_split(x), join_split(y))
-
-    sf.join <- spat_list |>
-    furrr::future_pmap(.f = function(first, second, ...){
-      sf:::st_join.sf(x=first, y=second, join=join, ...,
+      sf:::st_join.sf(x=x1, y=y1, join=join, ...,
                       suffix=suffix, left=left,
                       largest=largest)
     }, ..., .progress = .progress)
-  }
 
 
   future:::ClusterRegistry("stop")
 
+  #merge and clean up
   j <- do.call(rbind, sf.join)
   rownames(j)<-NULL
-  if (chunktype[1]=='rowwise') {
-    j <- j[order(j$id.x),]
-    j <-j[!names(j) %in% c("id.x", "id.y")]
-  }
   j
 
 }
@@ -114,9 +86,6 @@ future_st_filter = function(x, y, ...) UseMethod("future_st_filter")
 future_st_filter.sf = function(x, y, ..., .predicate = st_intersects,
                                ncores = parallel::detectCores(), n_chunks=1,
                                .progress=FALSE) {
-  if (!requireNamespace("dplyr", quietly = TRUE))
-    stop("dplyr is not installed: install first?")
-
   nr <- nrow(x)
   grp_size <- round(nr/ncores+1)/n_chunks
   future::plan(future::multisession, workers = ncores)
