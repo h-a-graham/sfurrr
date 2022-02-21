@@ -41,18 +41,38 @@ future_st_join.sf <- function(x, y, join=st_intersects, ...,
   grp_size <- round(nr/ncores+1)/nchunks
   future::plan(future::multisession, workers = ncores)
 
-  sf.join <- split(x, as.integer(gl(nr, grp_size, nr))) |>
+  # write temp paraquet files. perhaps fractionally faster than passing across cores
+  t_dir <- tempdir()
+  geoarrow::write_geoarrow_parquet(x, file.path(t_dir, "x.parquet"))
+  geoarrow::write_geoarrow_parquet(y, file.path(t_dir, "y.parquet"))
+
+  # get data ranges
+  h1 <- c(seq(0,nr, grp_size), nr)
+  df_ranges <- data.frame(a=h1[1:length(h1)-1]+1, b=h1[2:length(h1)])
+  df_ranges <- split(df_ranges, 1:nrow(df_ranges))
+
+  #run parallel join
+  sf.join <- df_ranges |>
     furrr::future_map(.f = function(.x, ...){
-      sf:::st_join.sf(x=.x, y=y, join=join, ...,
+
+      x1 <- geoarrow::read_geoarrow_parquet_sf(file.path(t_dir, "x.parquet"))
+      x1 <- x1[.x$a:.x$b,]
+
+      y1 <- geoarrow::read_geoarrow_parquet_sf(file.path(t_dir, "y.parquet"))
+
+      sf:::st_join.sf(x=x1, y=y1, join=join, ...,
                       suffix=suffix, left=left,
                       largest=largest)
     }, ..., .progress = .progress)
 
+
   future:::ClusterRegistry("stop")
 
+  #merge and clean up
   j <- do.call(rbind, sf.join)
   rownames(j)<-NULL
   j
+
 }
 
 
@@ -66,9 +86,6 @@ future_st_filter = function(x, y, ...) UseMethod("future_st_filter")
 future_st_filter.sf = function(x, y, ..., .predicate = st_intersects,
                                ncores = parallel::detectCores(), n_chunks=1,
                                .progress=FALSE) {
-  if (!requireNamespace("dplyr", quietly = TRUE))
-    stop("dplyr is not installed: install first?")
-
   nr <- nrow(x)
   grp_size <- round(nr/ncores+1)/n_chunks
   future::plan(future::multisession, workers = ncores)

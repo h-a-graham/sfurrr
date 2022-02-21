@@ -19,7 +19,8 @@ future_st_join(x, y, join, ...)
   left = TRUE,
   ncores = parallel::detectCores(),
   nchunks = 1,
-  .progress = FALSE
+  .progress = FALSE,
+  chunktype = c("rowwise", "spatial")
 )
 
 future_st_filter(x, y, ...)
