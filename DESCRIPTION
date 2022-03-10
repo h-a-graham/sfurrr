@@ -25,4 +25,4 @@ Depends:
     sf
 LazyData: true
 Remotes: 
-  geoarrow
+  paleolimbot/geoarrow

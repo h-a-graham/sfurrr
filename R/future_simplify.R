@@ -53,7 +53,7 @@ future_simplify <- function(x, keep = 0.05,
                             drop_null_geometries = TRUE,
                             snap_interval = NULL,
                             ncores = parallel::detectCores(),
-                            nchunks=1, .progress=TRUE) {
+                            nchunks=1, .progress=FALSE) {
   nr <- nrow(x)
   grp_size <- round(nr/ncores+1)/nchunks
   future::plan(future::multisession, workers = ncores)

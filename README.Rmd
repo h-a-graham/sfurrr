@@ -24,17 +24,19 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 <!-- badges: end -->
 
 An experimental R package to parallelise some functions from the
-excellent {sf} package using the also brilliant {furrr} package. Right
-now it's just parallel versions of `st_join` and
-`st_filter`<https://r-spatial.github.io/sf/reference/st_join.html>. They
-won't always help and will often be slower but sometimes it might be
-useful. This is just messing about right now tbh. The code is
-deliberately copied from {sf} and {furrr} so that it can be used as a
-drop in replacement.
+excellent [{sf}](https://r-spatial.github.io/sf/) and [{rmapshaper}](https://github.com/ateucher/rmapshaper) 
+packages using the also brilliant [{furrr}](https://github.com/DavisVaughan/furrr) 
+package. Right now, it's just parallel versions of [`st_join` and
+`st_filter`](https://r-spatial.github.io/sf/reference/st_join.html) from {sf} and
+[`ms_simplify`](https://github.com/ateucher/rmapshaper/blob/master/R/simplify.R) 
+from {rmapshaper}. They won't always help and may be slower but, sometimes it might be
+useful. This is just messing about right now tbh. The code is deliberately copied 
+from {sf}, {rmapshaper} and {furrr} so that it can be used as a drop in replacement.
 
 I've added [{geoarrow}](https://github.com/paleolimbot/geoarrow) as a dependency
 to play with using it to pass data between cores - it seems to be fractionally 
-faster... make sure to install {arrow} if you want to try this out.
+faster and solves the issue of passing objects larer than the limit allowed by
+furrr... make sure to install {arrow} if you want to try this out.
 
 ## Install
 
@@ -47,7 +49,7 @@ So here is the some data included in the package - it is the English
 cycle network from Open Street Map (downloaded with
 [{osmextract}](https://docs.ropensci.org/osmextract/)) and British
 counties from [Ordnance
-survey](https://osdatahub.os.uk/downloads/open/BoundaryLine).
+survey](https://osdatahub.os.uk/downloads/open/BoundaryLine). 
 
 ```{r show_test_data}
 library(sfurrr)
@@ -165,3 +167,20 @@ ggplot(within_filt_t2)+
   geom_sf(data=gb_counties, fill=NA, colour='grey30') +
   theme_bw()
 ```
+
+And here is a bonus - simplify sf geometries by using `rmapshaper::s_simplify` 
+in parallel!
+
+```{r simplify}
+# ------------ `ms_simplify` ----------------
+tic()
+cycles_simp_ms <- rmapshaper::ms_simplify(cycleways_england)
+toc()
+
+# ----------- `future_simplify` -----------------
+
+tic()
+cycles_simp <- future_simplify(cycleways_england)
+toc()
+```
+
