@@ -18,7 +18,8 @@ Imports:
   furrr,
   parallel,
   future,
-  geoarrow
+  geoarrow,
+  rmapshaper
 Depends: 
     R (>= 4.1),
     sf
