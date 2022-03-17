@@ -41,7 +41,7 @@
 #'
 #' @return a simplified representation of the geometry in the same class as the
 #'   input
-
+#' @export
 future_simplify <- function(x, keep = 0.05,
                             method = NULL,
                             weighting = 0.7,
