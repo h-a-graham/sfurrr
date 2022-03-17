@@ -9,18 +9,23 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 <!-- badges: end -->
 
 An experimental R package to parallelise some functions from the
-excellent {sf} package using the also brilliant {furrr} package. Right
-now it’s just parallel versions of `st_join` and
-`st_filter`<https://r-spatial.github.io/sf/reference/st_join.html>. They
-won’t always help and will often be slower but sometimes it might be
-useful. This is just messing about right now tbh. The code is
-deliberately copied from {sf} and {furrr} so that it can be used as a
-drop in replacement.
+excellent [{sf}](https://r-spatial.github.io/sf/) and
+[{rmapshaper}](https://github.com/ateucher/rmapshaper) packages using
+the also brilliant [{furrr}](https://github.com/DavisVaughan/furrr)
+package. Right now, it’s just parallel versions of [`st_join` and
+`st_filter`](https://r-spatial.github.io/sf/reference/st_join.html) from
+{sf} and
+[`ms_simplify`](https://github.com/ateucher/rmapshaper/blob/master/R/simplify.R)
+from {rmapshaper}. They won’t always help and may be slower but,
+sometimes it might be useful. This is just messing about right now tbh.
+The code is deliberately copied from {sf}, {rmapshaper} and {furrr} so
+that it can be used as a drop in replacement.
 
 I’ve added [{geoarrow}](https://github.com/paleolimbot/geoarrow) as a
 dependency to play with using it to pass data between cores - it seems
-to be fractionally faster… make sure to install {arrow} if you want to
-try this out.
+to be fractionally faster and solves the issue of passing objects larer
+than the limit allowed by furrr… make sure to install {arrow} if you
+want to try this out.
 
 ## Install
 
@@ -84,7 +89,7 @@ join.sf <-  st_join(cycleways_england,
 toc()
 ```
 
-    ## 9.013 sec elapsed
+    ## 9.086 sec elapsed
 
 ``` r
 tic()
@@ -93,7 +98,7 @@ join.sfurr <-  future_st_join(cycleways_england,
 toc()
 ```
 
-    ## 16.913 sec elapsed
+    ## 19.077 sec elapsed
 
 Okay.. so {sf} is actually a lot faster?! Yes, using the simple
 st_intersect with a left join (default) is pretty speedy already with
@@ -109,7 +114,7 @@ joinL.sf <-  st_join(cycleways_england,
 toc()
 ```
 
-    ## 154.848 sec elapsed
+    ## 156.124 sec elapsed
 
 ``` r
 # ------------ `future_st_join` ----------------
@@ -119,7 +124,7 @@ joinL.sfurr <-  future_st_join(cycleways_england,
 toc()
 ```
 
-    ## 46.467 sec elapsed
+    ## 47.547 sec elapsed
 
 Okay so now we see that going parallel does indeed offer some potential
 uses when using a costly spatial function.
@@ -137,7 +142,7 @@ filt_t1 <- st_filter(cycleways_england['highway'],
 toc()
 ```
 
-    ## 8.131 sec elapsed
+    ## 8.072 sec elapsed
 
 ``` r
 # ----------- `future_st_filter` -----------------
@@ -147,7 +152,7 @@ filt_t2 <- future_st_filter(cycleways_england['highway'],
 toc()
 ```
 
-    ## 21.13 sec elapsed
+    ## 22.181 sec elapsed
 
 No surprises, {sf} is faster again. But, what about a more costly
 operation. Let’s use the `st_within` spatial predicate to filter out
@@ -162,7 +167,7 @@ within_filt_t1 <- st_filter(joinL.sfurr,
 toc()
 ```
 
-    ## 55.333 sec elapsed
+    ## 55.8 sec elapsed
 
 ``` r
 # ----------- `future_st_filter` -----------------
@@ -172,7 +177,7 @@ within_filt_t2 <- future_st_filter(joinL.sfurr,
 toc()
 ```
 
-    ## 26.821 sec elapsed
+    ## 31.498 sec elapsed
 
 Cool, so in this case it is faster!
 
@@ -192,3 +197,25 @@ ggplot(within_filt_t2)+
 ```
 
 ![](man/figures/final_plot-1.png)<!-- -->
+
+And here is a bonus - simplify sf geometries by using
+`rmapshaper::s_simplify` in parallel!
+
+``` r
+# ------------ `ms_simplify` ----------------
+tic()
+cycles_simp_ms <- rmapshaper::ms_simplify(cycleways_england)
+toc()
+```
+
+    ## 46.269 sec elapsed
+
+``` r
+# ----------- `future_simplify` -----------------
+
+tic()
+cycles_simp <- future_simplify(cycleways_england)
+toc()
+```
+
+    ## 19.874 sec elapsed

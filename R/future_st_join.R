@@ -28,6 +28,7 @@ future_st_join = function(x, y, join, ...) UseMethod("future_st_join")
 #' available cores
 #' @param nchunks The number of chunks to run on each core. Default is 1.
 #' Can improve or worsen performance depending on dataset size and number of cores
+#' @param .progress Show progress bar. Only useful when nchunks > 1. default is FALSE
 #'
 #' @details See \link[sf]{st_join} for detais regarding join types.
 #'
@@ -47,7 +48,7 @@ future_st_join.sf <- function(x, y, join=st_intersects, ...,
   geoarrow::write_geoarrow_parquet(y, file.path(t_dir, "y.parquet"))
 
   # get data ranges
-  h1 <- c(seq(0,nr, grp_size), nr)
+  h1 <- round(c(seq(0,nr, grp_size), nr))
   df_ranges <- data.frame(a=h1[1:length(h1)-1]+1, b=h1[2:length(h1)])
   df_ranges <- split(df_ranges, 1:nrow(df_ranges))
 

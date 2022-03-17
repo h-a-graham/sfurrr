@@ -19,8 +19,7 @@ future_st_join(x, y, join, ...)
   left = TRUE,
   ncores = parallel::detectCores(),
   nchunks = 1,
-  .progress = FALSE,
-  chunktype = c("rowwise", "spatial")
+  .progress = FALSE
 )
 
 future_st_filter(x, y, ...)
@@ -63,6 +62,8 @@ available cores}
 
 \item{nchunks}{The number of chunks to run on each core. Default is 1.
 Can improve or worsen performance depending on dataset size and number of cores}
+
+\item{.progress}{Show progress bar. Only useful when nchunks > 1. default is FALSE}
 
 \item{.predicate}{geometry predicate function with the same profile as \link{st_intersects}; see details}
 }
