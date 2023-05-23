@@ -33,6 +33,10 @@ future_st_join = function(x, y, join, ...) UseMethod("future_st_join")
 #' @return an object of class \code{sf}, joined based on geometry
 #' @export
 #' @import future sf
+#' @examples
+#' plan(multisession, workers = 2)
+#'
+#' future_st_join(cycleways_england(), gb_counties())
 future_st_join.sf <- function(x, y, join=st_intersects, ...,
                               suffix = c(".x", ".y"), largest=FALSE,
                               left = TRUE, nchunks=1, .progress=FALSE){
@@ -69,6 +73,10 @@ future_st_filter = function(x, y, ...) UseMethod("future_st_filter")
 #' @name future_st_join
 #' @param .predicate geometry predicate function with the same profile as \link[sf]{st_intersects}; see details
 #' @import future sf
+#' @examples
+#' plan(multisession, workers = 2)
+#' future_st_filter(cycleways_england(), gb_counties()[1:50,])
+#'
 future_st_filter.sf = function(x, y, ..., .predicate = st_intersects,
                                nchunks=1, .progress=FALSE) {
 

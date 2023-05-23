@@ -1,5 +1,5 @@
 Package: sfurrr
-Title: Runs spatial joins and filters in parallel.
+Title: Run spatial joins and filters with {sf} in parallel
 Version: 0.0.1.0
 Date: 2022-02-17
 Authors@R: 
