@@ -42,27 +42,28 @@ survey](https://osdatahub.os.uk/downloads/open/BoundaryLine).
 
 ``` r
 library(sfurrr)
-library(ggplot2)
 
-ggplot(cycleways_england)+
-  geom_sf(colour='#39C173')+
-  geom_sf(data=gb_counties, fill=NA, colour='grey30') +
-  theme_bw()
+cwe <- cycleways_england()
+gbc <-  gb_counties()
+
+basetheme::basetheme("dark")
+plot(gbc['geometry'],  axes = TRUE)
+plot(cwe['geometry'], add=TRUE, col='#39C17360')
 ```
 
 ![](man/figures/show_test_data-1.png)<!-- -->
 
 ``` r
-summary(cycleways_england)
+summary(cwe)
 ```
 
     ##     osm_id            highway                   geometry     
-    ##  Length:105184      Length:105184      LINESTRING   :105184  
+    ##  Length:120451      Length:120451      LINESTRING   :120451  
     ##  Class :character   Class :character   epsg:27700   :     0  
     ##  Mode  :character   Mode  :character   +proj=tmer...:     0
 
 ``` r
-summary(gb_counties)
+summary(gbc)
 ```
 
     ##      Name           Area_Description            geometry 
@@ -84,21 +85,23 @@ Let’s also get some timings with {tictoc}
 library(tictoc)
 
 tic()
-join.sf <-  st_join(cycleways_england,
-                  gb_counties)
+join.sf <-  st_join(cwe,
+                  gbc)
 toc()
 ```
 
-    ## 9.086 sec elapsed
+    ## 6.165 sec elapsed
 
 ``` r
+plan(multisession, workers = 4)
+
 tic()
-join.sfurr <-  future_st_join(cycleways_england,
-                  gb_counties)
+join.sfurr <-  future_st_join(cwe,
+                  gbc)
 toc()
 ```
 
-    ## 19.077 sec elapsed
+    ## 4.45 sec elapsed
 
 Okay.. so {sf} is actually a lot faster?! Yes, using the simple
 st_intersect with a left join (default) is pretty speedy already with
@@ -109,22 +112,24 @@ intersection.
 ``` r
 # ------------ `st_join` ----------------
 tic()
-joinL.sf <-  st_join(cycleways_england,
-                  gb_counties, largest=TRUE)
+joinL.sf <-  st_join(cwe,
+                  gbc, largest=TRUE)
 toc()
 ```
 
-    ## 156.124 sec elapsed
+    ## 91.203 sec elapsed
 
 ``` r
 # ------------ `future_st_join` ----------------
+plan(multisession, workers = 8)
+
 tic()
-joinL.sfurr <-  future_st_join(cycleways_england,
-                  gb_counties, largest=TRUE)
+joinL.sfurr <-  future_st_join(cwe,
+                  gbc, largest=TRUE)
 toc()
 ```
 
-    ## 47.547 sec elapsed
+    ## 25.912 sec elapsed
 
 Okay so now we see that going parallel does indeed offer some potential
 uses when using a costly spatial function.
@@ -137,22 +142,23 @@ Once again, here is a comparison of the simplest approach with th
 ``` r
 # ------------ `st_fiter` ----------------
 tic()
-filt_t1 <- st_filter(cycleways_england['highway'],
-                     gb_counties[1:50,])
+filt_t1 <- st_filter(cwe['highway'],
+                     gbc[1:50,])
 toc()
 ```
 
-    ## 8.072 sec elapsed
+    ## 5.472 sec elapsed
 
 ``` r
 # ----------- `future_st_filter` -----------------
+plan(multisession, workers = 4)
 tic()
-filt_t2 <- future_st_filter(cycleways_england['highway'],
-                            gb_counties[1:50,])
+filt_t2 <- future_st_filter(cwe['highway'],
+                            gbc[1:50,])
 toc()
 ```
 
-    ## 22.181 sec elapsed
+    ## 4.28 sec elapsed
 
 No surprises, {sf} is faster again. But, what about a more costly
 operation. Let’s use the `st_within` spatial predicate to filter out
@@ -163,21 +169,23 @@ kind of pointless for this use case and is just illustrative really…
 # ------------ `st_fiter` ----------------
 tic()
 within_filt_t1 <- st_filter(joinL.sfurr,
-                     gb_counties[1:50,], .predicate = st_within)
+                     gbc[1:50,], .predicate = st_within)
 toc()
 ```
 
-    ## 55.8 sec elapsed
+    ## 68.252 sec elapsed
 
 ``` r
 # ----------- `future_st_filter` -----------------
+plan(multisession, workers = 6)
+
 tic()
 within_filt_t2 <- future_st_filter(joinL.sfurr,
-                            gb_counties[1:50,], .predicate = st_within)
+                            gbc[1:50,], .predicate = st_within)
 toc()
 ```
 
-    ## 31.498 sec elapsed
+    ## 24.274 sec elapsed
 
 Cool, so in this case it is faster!
 
@@ -190,32 +198,8 @@ processes you can run; by default, {sfurrr} uses all available cores but
 in many cases this is overkill…
 
 ``` r
-ggplot(within_filt_t2)+
-  geom_sf(aes(colour=Name), show.legend=FALSE)+
-  geom_sf(data=gb_counties, fill=NA, colour='grey30') +
-  theme_bw()
+plot(gbc['geometry'],  axes = TRUE)
+plot(within_filt_t2['Name'], add=TRUE)
 ```
 
 ![](man/figures/final_plot-1.png)<!-- -->
-
-And here is a bonus - simplify sf geometries by using
-`rmapshaper::s_simplify` in parallel!
-
-``` r
-# ------------ `ms_simplify` ----------------
-tic()
-cycles_simp_ms <- rmapshaper::ms_simplify(cycleways_england)
-toc()
-```
-
-    ## 46.269 sec elapsed
-
-``` r
-# ----------- `future_simplify` -----------------
-
-tic()
-cycles_simp <- future_simplify(cycleways_england)
-toc()
-```
-
-    ## 19.874 sec elapsed

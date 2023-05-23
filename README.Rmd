@@ -53,15 +53,17 @@ survey](https://osdatahub.os.uk/downloads/open/BoundaryLine).
 
 ```{r show_test_data}
 library(sfurrr)
-library(ggplot2)
 
-ggplot(cycleways_england)+
-  geom_sf(colour='#39C173')+
-  geom_sf(data=gb_counties, fill=NA, colour='grey30') +
-  theme_bw()
+cwe <- cycleways_england()
+gbc <-  gb_counties()
 
-summary(cycleways_england)
-summary(gb_counties)
+basetheme::basetheme("dark")
+plot(gbc['geometry'],  axes = TRUE)
+plot(cwe['geometry'], add=TRUE, col='#39C17360')
+
+
+summary(cwe)
+summary(gbc)
 ```
 
 ### Spatial Joins
@@ -78,13 +80,15 @@ Let's also get some timings with {tictoc}
 library(tictoc)
 
 tic()
-join.sf <-  st_join(cycleways_england,
-                  gb_counties)
+join.sf <-  st_join(cwe,
+                  gbc)
 toc()
 
+plan(multisession, workers = 4)
+
 tic()
-join.sfurr <-  future_st_join(cycleways_england,
-                  gb_counties)
+join.sfurr <-  future_st_join(cwe,
+                  gbc)
 toc()
 ```
 
@@ -97,14 +101,16 @@ intersection.
 ```{r intersect_largest_join_sf}
 # ------------ `st_join` ----------------
 tic()
-joinL.sf <-  st_join(cycleways_england,
-                  gb_counties, largest=TRUE)
+joinL.sf <-  st_join(cwe,
+                  gbc, largest=TRUE)
 toc()
 
 # ------------ `future_st_join` ----------------
+plan(multisession, workers = 8)
+
 tic()
-joinL.sfurr <-  future_st_join(cycleways_england,
-                  gb_counties, largest=TRUE)
+joinL.sfurr <-  future_st_join(cwe,
+                  gbc, largest=TRUE)
 toc()
 ```
 
@@ -119,14 +125,15 @@ Once again, here is a comparison of the simplest approach with th
 ```{r spatial_filter}
 # ------------ `st_fiter` ----------------
 tic()
-filt_t1 <- st_filter(cycleways_england['highway'],
-                     gb_counties[1:50,])
+filt_t1 <- st_filter(cwe['highway'],
+                     gbc[1:50,])
 toc()
 
 # ----------- `future_st_filter` -----------------
+plan(multisession, workers = 4)
 tic()
-filt_t2 <- future_st_filter(cycleways_england['highway'],
-                            gb_counties[1:50,])
+filt_t2 <- future_st_filter(cwe['highway'],
+                            gbc[1:50,])
 toc()
 
 ```
@@ -141,13 +148,15 @@ really...
 # ------------ `st_fiter` ----------------
 tic()
 within_filt_t1 <- st_filter(joinL.sfurr,
-                     gb_counties[1:50,], .predicate = st_within)
+                     gbc[1:50,], .predicate = st_within)
 toc()
 
 # ----------- `future_st_filter` -----------------
+plan(multisession, workers = 6)
+
 tic()
 within_filt_t2 <- future_st_filter(joinL.sfurr,
-                            gb_counties[1:50,], .predicate = st_within)
+                            gbc[1:50,], .predicate = st_within)
 toc()
 ```
 
@@ -162,25 +171,8 @@ processes you can run; by default, {sfurrr} uses all available cores but
 in many cases this is overkill...
 
 ```{r final_plot}
-ggplot(within_filt_t2)+
-  geom_sf(aes(colour=Name), show.legend=FALSE)+
-  geom_sf(data=gb_counties, fill=NA, colour='grey30') +
-  theme_bw()
+plot(gbc['geometry'],  axes = TRUE)
+plot(within_filt_t2['Name'], add=TRUE)
 ```
 
-And here is a bonus - simplify sf geometries by using `rmapshaper::s_simplify` 
-in parallel!
-
-```{r simplify}
-# ------------ `ms_simplify` ----------------
-tic()
-cycles_simp_ms <- rmapshaper::ms_simplify(cycleways_england)
-toc()
-
-# ----------- `future_simplify` -----------------
-
-tic()
-cycles_simp <- future_simplify(cycleways_england)
-toc()
-```
 

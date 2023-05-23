@@ -12,7 +12,7 @@ future_st_join = function(x, y, join, ...) UseMethod("future_st_join")
 #' @param x object of class \code{sf}
 #' @param y object of class \code{sf}
 #' @param join geometry predicate function with the same profile
-#' as \link{st_intersects}; see details
+#' as \link[sf]{st_intersects}; see details
 #' @param ... for \code{st_join}: arguments passed on to the \code{join}
 #' function or to \code{st_intersection} when \code{largest} is \code{TRUE};
 #' for \code{st_filter} arguments passed on to the \code{.predicate} function,
@@ -24,8 +24,6 @@ future_st_join = function(x, y, join, ...) UseMethod("future_st_join")
 #' @param left left logical; if \code{TRUE} return the left join, otherwise
 #' an inner join; see details.
 #' see also \link[dplyr:mutate-joins]{left_join}
-#' @param ncores Integer many processes do you want to use. Default is all
-#' available cores
 #' @param nchunks The number of chunks to run on each core. Default is 1.
 #' Can improve or worsen performance depending on dataset size and number of cores
 #' @param .progress Show progress bar. Only useful when nchunks > 1. default is FALSE
@@ -34,45 +32,31 @@ future_st_join = function(x, y, join, ...) UseMethod("future_st_join")
 #'
 #' @return an object of class \code{sf}, joined based on geometry
 #' @export
+#' @import future sf
 future_st_join.sf <- function(x, y, join=st_intersects, ...,
                               suffix = c(".x", ".y"), largest=FALSE,
-                              left = TRUE,  ncores = parallel::detectCores(),
-                              nchunks=1, .progress=FALSE){
-  nr <- nrow(x)
-  grp_size <- round(nr/ncores+1)/nchunks
-  future::plan(future::multisession, workers = ncores)
+                              left = TRUE, nchunks=1, .progress=FALSE){
 
-  # write temp paraquet files. perhaps fractionally faster than passing across cores
-  t_dir <- tempdir()
-  geoarrow::write_geoarrow_parquet(x, file.path(t_dir, "x.parquet"))
-  geoarrow::write_geoarrow_parquet(y, file.path(t_dir, "y.parquet"))
-
-  # get data ranges
-  h1 <- round(c(seq(0,nr, grp_size), nr))
-  df_ranges <- data.frame(a=h1[1:length(h1)-1]+1, b=h1[2:length(h1)])
-  df_ranges <- split(df_ranges, 1:nrow(df_ranges))
+  dist.list <- setup_distribute(x, y, tempdir(), future::nbrOfWorkers(), nchunks)
 
   #run parallel join
-  sf.join <- df_ranges |>
+  sf.join <- dist.list$tab_ranges |>
     furrr::future_map(.f = function(.x, ...){
 
-      x1 <- geoarrow::read_geoarrow_parquet_sf(file.path(t_dir, "x.parquet"))
-      x1 <- x1[.x$a:.x$b,]
+      x1 <- geoarrow_filter(dist.list$xpath,
+                            rs=.x$a,
+                            re=.x$b)
 
-      y1 <- geoarrow::read_geoarrow_parquet_sf(file.path(t_dir, "y.parquet"))
+      y1 <- geoarrow::read_geoparquet_sf(dist.list$ypath)
 
-      sf:::st_join.sf(x=x1, y=y1, join=join, ...,
+      sf::st_join(x=x1, y=y1, join=join, ...,
                       suffix=suffix, left=left,
                       largest=largest)
-    }, ..., .progress = .progress)
+    }, ..., .progress = .progress, .options = furrr::furrr_options(seed = TRUE)) |>
+    purrr::list_rbind() |>
+    sf::st_as_sf()
 
-
-  future:::ClusterRegistry("stop")
-
-  #merge and clean up
-  j <- do.call(rbind, sf.join)
-  rownames(j)<-NULL
-  j
+  return(sf.join)
 
 }
 
@@ -83,22 +67,28 @@ future_st_filter = function(x, y, ...) UseMethod("future_st_filter")
 
 #' @export
 #' @name future_st_join
-#' @param .predicate geometry predicate function with the same profile as \link{st_intersects}; see details
+#' @param .predicate geometry predicate function with the same profile as \link[sf]{st_intersects}; see details
+#' @import future sf
 future_st_filter.sf = function(x, y, ..., .predicate = st_intersects,
-                               ncores = parallel::detectCores(), n_chunks=1,
-                               .progress=FALSE) {
-  nr <- nrow(x)
-  grp_size <- round(nr/ncores+1)/n_chunks
-  future::plan(future::multisession, workers = ncores)
+                               nchunks=1, .progress=FALSE) {
 
-  sf.filt <- split(x, as.integer(gl(nr, grp_size, nr))) |>
+  dist.list <- setup_distribute(x, y, tempdir(), future::nbrOfWorkers(), nchunks)
+
+  sf.filt <- dist.list$tab_ranges |>
     furrr::future_map(.f = function(.x, ...){
-      .x[lengths(.predicate(.x, y, ...)) > 0,]
-      }, ..., .progress=.progress)
 
-  future:::ClusterRegistry("stop")
-  # bind rows and reset row names
-  f <- do.call(rbind, sf.filt)
-  rownames(f)<-NULL
-  f
+      x1 <- geoarrow_filter(dist.list$xpath, rs=.x$a, re=.x$b)
+      y1 <- geoarrow::read_geoparquet_sf(dist.list$ypath)
+      x1[lengths(.predicate(x1, y1, ...)) > 0,]
+
+      }, ..., .progress=.progress, .options = furrr::furrr_options(seed = TRUE)) |>
+    purrr::list_rbind() |>
+    sf::st_as_sf()
+
+  return(sf.filt)
+
 }
+
+
+
+
