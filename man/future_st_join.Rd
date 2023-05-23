@@ -17,7 +17,6 @@ future_st_join(x, y, join, ...)
   suffix = c(".x", ".y"),
   largest = FALSE,
   left = TRUE,
-  ncores = parallel::detectCores(),
   nchunks = 1,
   .progress = FALSE
 )
@@ -29,8 +28,7 @@ future_st_filter(x, y, ...)
   y,
   ...,
   .predicate = st_intersects,
-  ncores = parallel::detectCores(),
-  n_chunks = 1,
+  nchunks = 1,
   .progress = FALSE
 )
 }
@@ -40,7 +38,7 @@ future_st_filter(x, y, ...)
 \item{y}{object of class \code{sf}}
 
 \item{join}{geometry predicate function with the same profile
-as \link{st_intersects}; see details}
+as \link[sf]{st_intersects}; see details}
 
 \item{...}{for \code{st_join}: arguments passed on to the \code{join}
 function or to \code{st_intersection} when \code{largest} is \code{TRUE};
@@ -57,15 +55,12 @@ features of \code{x}; see https://github.com/r-spatial/sf/issues/578}
 an inner join; see details.
 see also \link[dplyr:mutate-joins]{left_join}}
 
-\item{ncores}{Integer many processes do you want to use. Default is all
-available cores}
-
 \item{nchunks}{The number of chunks to run on each core. Default is 1.
 Can improve or worsen performance depending on dataset size and number of cores}
 
 \item{.progress}{Show progress bar. Only useful when nchunks > 1. default is FALSE}
 
-\item{.predicate}{geometry predicate function with the same profile as \link{st_intersects}; see details}
+\item{.predicate}{geometry predicate function with the same profile as \link[sf]{st_intersects}; see details}
 }
 \value{
 an object of class \code{sf}, joined based on geometry
@@ -77,4 +72,12 @@ small. It won't be kind to your machine's memory.
 }
 \details{
 See \link[sf]{st_join} for detais regarding join types.
+}
+\examples{
+plan(multisession, workers = 2)
+
+future_st_join(cycleways_england(), gb_counties())
+plan(multisession, workers = 2)
+future_st_filter(cycleways_england(), gb_counties()[1:50,])
+
 }

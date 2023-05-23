@@ -13,10 +13,8 @@ future_simplify(
   no_repair = FALSE,
   snap = TRUE,
   explode = FALSE,
-  force_FC = TRUE,
   drop_null_geometries = TRUE,
   snap_interval = NULL,
-  ncores = parallel::detectCores(),
   nchunks = 1,
   .progress = FALSE
 )
@@ -59,9 +57,6 @@ Ignored for \code{Spatial*} objects, as it is always \code{TRUE}.}
 
 \item{snap_interval}{Specify snapping distance in source units, must be a
 numeric. Default \code{NULL}}
-
-\item{ncores}{Integer many processes do you want to use. Default is all
-available cores}
 
 \item{nchunks}{The number of chunks to run on each core. Default is 1.
 Can improve or worsen performance depending on dataset size and number of cores}

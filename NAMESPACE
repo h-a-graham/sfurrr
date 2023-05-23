@@ -2,6 +2,10 @@
 
 S3method(future_st_filter,sf)
 S3method(future_st_join,sf)
+export(cycleways_england)
 export(future_simplify)
 export(future_st_filter)
 export(future_st_join)
+export(gb_counties)
+import(future)
+import(sf)
