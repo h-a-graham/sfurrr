@@ -20,8 +20,9 @@ Imports:
     rmapshaper,
     purrr (>= 1.0.1)
 Suggests:
-  basetheme,
-  tictoc
+    basetheme,
+    dplyr,
+    tictoc
 Depends: 
     R (>= 4.1),
     future (>= 1.25.0),

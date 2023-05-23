@@ -34,7 +34,7 @@ future_st_join = function(x, y, join, ...) UseMethod("future_st_join")
 #' @export
 #' @import future sf
 #' @examples
-#' plan(multisession, workers = 2)
+#' #plan(multisession, workers = 2)
 #'
 #' future_st_join(cycleways_england(), gb_counties())
 future_st_join.sf <- function(x, y, join=st_intersects, ...,
@@ -74,7 +74,7 @@ future_st_filter = function(x, y, ...) UseMethod("future_st_filter")
 #' @param .predicate geometry predicate function with the same profile as \link[sf]{st_intersects}; see details
 #' @import future sf
 #' @examples
-#' plan(multisession, workers = 2)
+#' #plan(multisession, workers = 2)
 #' future_st_filter(cycleways_england(), gb_counties()[1:50,])
 #'
 future_st_filter.sf = function(x, y, ..., .predicate = st_intersects,

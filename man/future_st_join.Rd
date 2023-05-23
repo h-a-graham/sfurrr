@@ -74,10 +74,10 @@ small. It won't be kind to your machine's memory.
 See \link[sf]{st_join} for detais regarding join types.
 }
 \examples{
-plan(multisession, workers = 2)
+#plan(multisession, workers = 2)
 
 future_st_join(cycleways_england(), gb_counties())
-plan(multisession, workers = 2)
+#plan(multisession, workers = 2)
 future_st_filter(cycleways_england(), gb_counties()[1:50,])
 
 }
